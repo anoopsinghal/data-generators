@@ -1,18 +1,16 @@
 import random
 import datetime
 import csv
+import pandas as pd
 import numpy
 import string
-
-import random
-import datetime
-import csv
-import numpy
-import string
-
+import names
+from faker import Faker
 import psycopg2
+import os
 
 from hotel_schema import create_schema
+
 
 # Replace these with your ElephantSQL database credentials
 db_credentials = {
@@ -39,14 +37,6 @@ except Exception as e:
 # end try
 
 create_schema(connection, cursor)
-
-exit(0)
-# Initialize lists to store generated data
-guests = []
-rooms = []
-bookings = []
-transactions = []
-used_guest_ids = set() # Create an empty list to store used guest IDs
 
 # Function to generate unique guest_id values
 def generate_guest_id():
@@ -113,49 +103,80 @@ def generate_random_address():
 
     return f'{street_num} {street_name}, {state} {zip_code}'
 
-import names
 
-def generate_guest():
+def save_to_csv(df, filename):
+  df.to_csv(f'{dirname}/{filename}.csv', index=False)
+  print(f"saved file for {filename} under {dirname}")
+# end save_to_csv
 
-  first_name = names.get_first_name()
-  last_name = names.get_last_name()
+def random_boolean():
+  return random.choice([True, False])
+# end random_boolean
 
-  guest = {
-        'guest_id' : generate_guest_id(), # guest id
-        'first_name': first_name,
-        'last_name': last_name,
-        'address': generate_random_address(),
-        'nationality': 'US', #if random.random() < 0.8 else 'Non-US',
-        'passport_number': random.randint(10000000, 99999999) if random.random() >= 0.8 else None,
-        'dl_number': random.randint(10000000, 99999999) if random.random() < 0.8 else None,
-        'cc_type': random.choice(['Visa', 'Mastercard', 'Amex', 'Apple Pay']), #Apple Pay new cc_type
-        'cc_last4': random.randint(1000, 9999),
-        'mobile': random_mobile(),
-        'email': random_email(first_name, last_name),
-        'num_guests': random.randint(0, 2),
-        'car_license_plate': f"{random.randint(100, 999)}-XYZ" if random.random() < 0.9 else None,
-        'loyalty_program': random.choice(['Silver', 'Gold', 'Platinum', 'None']), #None as new choice
-        'special_requests': 'Extra Towels' if random.random() < 0.2 else None,
-        'booking_source': random.choice(['Direct', 'Online', 'Social Media']), #social media as new source
-        'payment_status': 'Paid', #what if cancelled?
-        'pets': random.randint(0, 2),
-        'age_group': random.choice(["20-30", "30-40", "40-50", "50-60"]),
-        'visit_purpose': 'Leisure' if numpy.random.rand() <0.8 else 'Business', #80% Leisure and 20% business
-        'previous_stays': random.randint(0, 10)
-    }
-  return guest
+# Function to generate random decimal values
+def random_decimal():
+  return decimal.Decimal(random.randrange(100, 10000)) / 100
+#end random_decimal
+
+# Function to generate a random date within a range
+def random_date(start_date, end_date):
+  return fake.date_between_dates(date_start=start_date, date_end=end_date)
+#end random_date
+
+# Function to generate random integers within a range
+def random_integer(min_val, max_val):
+  return random.randint(min_val, max_val)
+# end random_integer
+
+# Initialize Faker and create directory for CSV files
+fake = Faker()
+dirname = 'csv_files'
+if not os.path.exists(dirname):
+    os.makedirs(dirname)
+
+# generate guests
+num_guests = 1000
+guests = pd.DataFrame({
+    'guest_id': range(1, num_guests + 1),
+    'first_name': [names.get_first_name() for _ in range(num_guests)],
+    'last_name': [names.get_last_name() for _ in range(num_guests)],
+    'address': [fake.address() for _ in range(num_guests)],
+    'nationality': ['US' for _ in range(num_guests)],
+    'passport_number': [random.randint(10000000, 99999999) if random.random() >= 0.8 else None for _ in range(num_guests)],
+    'dl_number': [random.randint(10000000, 99999999) if random.random() < 0.8 else None for _ in range(num_guests)],
+    'cc_type': [random.choice(['Visa', 'Mastercard', 'Amex', 'Apple Pay']) for _ in range(num_guests)],  # Apple Pay new cc_type
+    'cc_last4': [random.randint(1000, 9999) for _ in range(num_guests)],
+    'mobile': [fake.phone_number() for _ in range(num_guests)],
+    'email': [fake.ascii_email()  for _ in range(num_guests)],
+    'num_guests': [random.randint(0, 2) for _ in range(num_guests)],
+    'car_license_plate': [f"{random.randint(100, 999)}-XYZ" if random.random() < 0.9 else None for _ in range(num_guests)],
+    'loyalty_program': [random.choice(['Silver', 'Gold', 'Platinum', 'None'])  for _ in range(num_guests)],
+    'special_requests': ['Extra Towels' if random.random() < 0.2 else None  for _ in range(num_guests)],
+    'booking_source': [random.choice(['Direct', 'Online', 'Social Media']) for _ in range(num_guests)],
+    'payment_status': ['Paid'  for _ in range(num_guests)],
+    'pets': [random.randint(0, 2) for _ in range(num_guests)],
+    'age_group': [random.choice(["20-30", "30-40", "40-50", "50-60"]) for _ in range(num_guests)],
+    'visit_purpose': ['Leisure' if numpy.random.rand() < 0.8 else 'Business'  for _ in range(num_guests)],
+    'previous_stays': [random.randint(0, 10)  for _ in range(num_guests)]
+})
+save_to_csv(guests, 'guests')
 
 # Generate Rooms
-for i in range(100, 200):
-    room = {
-        'room_type': random.choice(["Standard", "Deluxe", "Suite"]),
-        'room_rate': random.uniform(100.0, 300.0),
-        'room_amenities': 'WiFi, Breakfast',
-        'room_status': random.choice(["Ready", "Needs Cleaning", "Maintenance"]),
-        'room_view': random.choice(["Ocean", "City", "Garden"]),
-        'room_floor': random.randint(1, 20)  # Added room floor
-    }
-    rooms.append(room)
+num_rooms = 200
+rooms = pd.DataFrame({
+  'room_id':range(1, num_rooms + 1),
+  'room_type': [random.choice(["Standard", "Deluxe", "Suite"]) for _ in range(num_rooms)],
+  'room_rate': [random.uniform(100.0, 300.0)  for _ in range(num_rooms)],
+  'room_amenities': ['WiFi, Breakfast' for _ in range(num_rooms)],
+  'room_status': [random.choice(["Ready", "Needs Cleaning", "Maintenance", "Occupied"]) for _ in range(num_rooms)],
+  'room_view': [random.choice(["Ocean", "City", "Garden"])  for _ in range(num_rooms)],
+  'room_floor': [random.randint(1, 20)  for _ in range(num_rooms)] # Added room floor
+})
+save_to_csv(rooms, 'rooms')
+
+exit(0)
+
+
 
 # Current date is August 31, 2023
 current_date = datetime.date(2023, 8, 31)
