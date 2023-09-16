@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS guests (
     special_requests VARCHAR(255),
     booking_source VARCHAR(255),
     payment_status VARCHAR(255),
+    age_group VARCHAR(255),
     pets VARCHAR(255),
     visit_purpose VARCHAR(255),
     previous_stays VARCHAR(255)
