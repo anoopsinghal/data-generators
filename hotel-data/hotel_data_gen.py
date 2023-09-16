@@ -38,23 +38,6 @@ except Exception as e:
 
 create_schema(connection, cursor)
 
-# Function to generate unique guest_id values
-def generate_guest_id():
-    while True:
-        guest_id = str(random.randint(100000, 999999))  # Generate a 6-digit random number
-        if guest_id not in used_guest_ids:  # Check if the ID is not in the list of used IDs
-            used_guest_ids.add(guest_id)  # Add the new ID to the set of used IDs
-            return guest_id
-
-# Function to generate random mobile numbers
-def random_mobile():
-    return f"{random.randint(201, 650)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}"
-
-# Function to generate random email addresses
-def random_email(first_name, last_name):
-    domains = ["gmail.com", "yahoo.com", "outlook.com"]
-    return f"{first_name.lower()}.{last_name.lower()}@{random.choice(domains)}"
-
 # Function to generate random booking date based on check in date
 def get_booking_date(checkin_date):
     days_before = numpy.random.randint(0,365)
@@ -80,29 +63,6 @@ def get_booking_date(checkin_date):
     booking_date = checkin_date - datetime.timedelta(days=days_before)
 
     return booking_date
-
-#Funtion to generate random addresses
-def generate_random_address():
-
-    # Street number between 1 and 9999
-    street_num = random.randint(1, 9999)
-
-    # Random street name of 1-3 words
-    street_name = ' '.join(random.choices(string.ascii_lowercase, k=random.randint(1,3)))
-
-    # Random choice of US state abbreviations
-    states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA',
-              'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-              'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-              'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-              'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY']
-    state = random.choice(states)
-
-    # Random 5 digit ZIP code
-    zip_code = random.randint(10000, 99999)
-
-    return f'{street_num} {street_name}, {state} {zip_code}'
-
 
 def save_to_csv(df, filename):
   df.to_csv(f'{dirname}/{filename}.csv', index=False)
@@ -174,176 +134,87 @@ rooms = pd.DataFrame({
 })
 save_to_csv(rooms, 'rooms')
 
-exit(0)
-
-
-
-# Current date is August 31, 2023
-current_date = datetime.date(2023, 8, 31)
-
-# Generate Bookings and Transactions
-start_date = datetime.date(2023, 1, 1)
-end_date = datetime.date(2023, 12, 31)
-
-for day in range((end_date - start_date).days):
-    checkin_date = start_date + datetime.timedelta(days=day) #changed this to checkin date
-    month = checkin_date.month
-
+# trial code to see what num bookings with season look like
+for month in range(1, 13):
     # Summer peak height 100
-    summer_bookings = 80 * numpy.exp(-0.5*(month-6)**2/4**2)
+    summer_bookings = 80 * numpy.exp(-0.5 * (month - 6) ** 2 / 4 ** 2)
     # Winter peak height 50
-    winter_bookings = 50 * numpy.exp(-0.5*(month-12)**2/3**2)
+    winter_bookings = 50 * numpy.exp(-0.5 * (month - 12) ** 2 / 3 ** 2)
     num_bookings = 10 + summer_bookings + winter_bookings
     num_bookings = int(max(0, num_bookings))
 
+    print(f"{month} - {summer_bookings} {winter_bookings} {num_bookings}")
+# end for
 
-    for i in range(num_bookings):
-        room = random.choice(rooms)
+# Generate Bookings and Transactions
+start_date = datetime.date(2023, 1, 1)
 
-        if len(guests) > 0 and random.random() < 0.2:  # Reuse existing guest 20% of the time
-          guest = random.choice(guests)
-        else:     # Create new guest 80% of the time
-          guest = generate_guest()
-        guests.append(guest)
+bookings = []
+transactions = []
+booking_id = 0
+transaction_id = 0
 
-        booking_length = random.randint(1, 5)
-        booking_date = get_booking_date(checkin_date) #define booking date based on check in date
-        checkout_date = booking_date + datetime.timedelta(days=booking_length)
+# for every room
+for room_id in range(1, num_rooms + 1):
+  # for every room
+  current_day = 0
+  while current_day < 365: # for a whole year
+    checkin_date = start_date + datetime.timedelta(days=current_day) #changed this to checkin date
+    month = checkin_date.month
 
+    booking_length = random.randint(1, 10)
+    booking_date = get_booking_date(checkin_date)  # define booking date based on check in date
 
-        # 10% cancellation rate
-        if random.random() < 0.1:
-            booking_status = 'Cancelled'
-        else:
-            booking_status = 'Checked Out'
+    booking_status = "booked" if random.random() < 0.9 else "Cancelled"
+    if month < 9: # upto august
+      checkout_date = booking_date + datetime.timedelta(days=booking_length)
+      booking_status = "Checked Out" if booking_status == "booked" else "Cancelled"
+    else:
+      checkin_date = None
+      checkout_date = None
+    # end if
 
-        booking = {
-            'guest_id': guest['guest_id'], #use guest id from guests
-            'room_id': rooms.index(room),
-            'booking_date': booking_date,
-            'checkin_date': checkin_date,
-            'checkout_date': checkout_date,
-            'num_guests': guest['num_guests'],
-            'booking_status': booking_status,  # Consolidated status
-            'total_amount': room['room_rate'] * booking_length,
-            'discount_code': None,
-            'upgrade_offer': None,
-            'feedback_score': None
-        }
-        bookings.append(booking)
+    guest_id = random_integer(1, num_guests + 1)
+    booking_id = booking_id + 1
+    booking = {
+      'booking_id' : booking_id,
+      'guest_id': guest_id,  # use guest id from guests
+      'room_id': room_id,
+      'booking_date': booking_date,
+      'checkin_date': checkin_date,
+      'checkout_date': checkout_date,
+      'num_guests': random_integer(1, 5),
+      'booking_status': booking_status,  # Consolidated status
+      'total_amount': rooms.iloc[room_id - 1]['room_rate'] * booking_length,
+      'discount_code': None,
+      'upgrade_offer': None,
+      'feedback_score': None
+    }
+    bookings.append(booking)
 
-        # Generate a transaction for the booking
-        transaction = {
-            'booking_id': bookings.index(booking),
-            'guest_id': guest['guest_id'],
-            'transaction_type': 'Room charge',
-            'amount': booking['total_amount'] if booking['booking_status'] != 'Cancelled' else 'N/A',
-            'transaction_date': booking_date
-        }
-        transactions.append(transaction)
+    # Generate a transaction for the booking
+    transaction_id = transaction_id + 1
+    transaction = {
+      'booking_id': booking_id,
+      'transaction_id': transaction_id,
+      'guest_id': guest_id,
+      'transaction_type': 'Room charge',
+      'amount': booking['total_amount'] if booking['booking_status'] != 'Cancelled' else 'N/A',
+      'transaction_date': booking_date
+    }
+    transactions.append(transaction)
 
-# Write data to CSV files and download them
-def write_and_download_csv(filename, data):
-    with open(filename, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=data[0].keys())
-        writer.writeheader()
-        for row in data:
-            writer.writerow(row)
-    files.download(filename)
+    current_day = current_day + booking_length
+  # end while
+  print(f"processed {room_id}")
+# end for room to book and transaction
+df = pd.DataFrame(bookings)
+save_to_csv(df, "bookings")
 
-write_and_download_csv('guests.csv', guests)
-write_and_download_csv('rooms.csv', rooms)
-write_and_download_csv('bookings.csv', bookings)
-write_and_download_csv('transactions.csv', transactions)
+df = pd.DataFrame(transactions)
+save_to_csv(df, "transactions")
 
-# Function to insert a guest into the database and handle duplicate guest_id values
-def insert_guest(guest):
-    while True:
-        try:
-            insert_guest_query = """
-            INSERT INTO guests (guest_id, first_name, last_name, address, nationality, passport_number, dl_number, cc_type, cc_last4, mobile, email, num_guests, car_license_plate, loyalty_program, special_requests, booking_source, payment_status, pets, age_group, visit_purpose, previous_stays)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """
-            cursor.execute(insert_guest_query, (
-                guest['guest_id'],
-                guest['first_name'],
-                guest['last_name'],
-                guest['address'],
-                guest['nationality'],
-                guest['passport_number'],
-                guest['dl_number'],
-                guest['cc_type'],
-                guest['cc_last4'],
-                guest['mobile'],
-                guest['email'],
-                guest['num_guests'],
-                guest['car_license_plate'],
-                guest['loyalty_program'],
-                guest['special_requests'],
-                guest['booking_source'],
-                guest['payment_status'],
-                guest['pets'],
-                guest['age_group'],
-                guest['visit_purpose'],
-                guest['previous_stays']
-            ))
-            break  # If the insert succeeds, exit the loop
-        except psycopg2.IntegrityError as e:
-            if "duplicate key value violates unique constraint" in str(e):
-                # Generate a new guest_id and try again
-                guest['guest_id'] = generate_guest_id()
-            else:
-                raise e
-
-# Insert data into the guests table
-for guest in guests:
-    insert_guest(guest)
-
-
-# Function to insert a guest into the database and handle duplicate guest_id values
-def insert_guest(guest):
-    while True:
-        try:
-            insert_guest_query = """
-            INSERT INTO guests (guest_id, first_name, last_name, address, nationality, passport_number, dl_number, cc_type, cc_last4, mobile, email, num_guests, car_license_plate, loyalty_program, special_requests, booking_source, payment_status, pets, age_group, visit_purpose, previous_stays)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """
-            cursor.execute(insert_guest_query, (
-                guest['guest_id'],
-                guest['first_name'],
-                guest['last_name'],
-                guest['address'],
-                guest['nationality'],
-                guest['passport_number'],
-                guest['dl_number'],
-                guest['cc_type'],
-                guest['cc_last4'],
-                guest['mobile'],
-                guest['email'],
-                guest['num_guests'],
-                guest['car_license_plate'],
-                guest['loyalty_program'],
-                guest['special_requests'],
-                guest['booking_source'],
-                guest['payment_status'],
-                guest['pets'],
-                guest['age_group'],
-                guest['visit_purpose'],
-                guest['previous_stays']
-            ))
-            connection.commit()  # Commit the transaction
-            break  # If the insert succeeds, exit the loop
-        except psycopg2.IntegrityError as e:
-            if "duplicate key value violates unique constraint" in str(e):
-                # Generate a new guest_id and try again
-                guest['guest_id'] = generate_guest_id()
-            else:
-                connection.rollback()  # Rollback the transaction in case of other errors
-                raise e
-
-# Insert data into the guests table
-for guest in guests:
-    insert_guest(guest)
+exit(0)
 
 # Insert data into the rooms table
 for room in rooms:
